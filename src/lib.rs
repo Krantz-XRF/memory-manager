@@ -24,6 +24,7 @@
 #![deny(unused_variables)]
 
 pub mod memory;
+pub mod utils;
 
 #[cfg(test)]
 extern crate std;

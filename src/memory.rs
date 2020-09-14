@@ -17,4 +17,5 @@
  */
 
 //! memory-related types and utilities
+pub mod object;
 pub mod primitives;
