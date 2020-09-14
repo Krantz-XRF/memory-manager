@@ -23,6 +23,8 @@
 #![deny(unused_imports)]
 #![deny(unused_variables)]
 
+pub mod memory;
+
 #[cfg(test)]
 extern crate std;
 
