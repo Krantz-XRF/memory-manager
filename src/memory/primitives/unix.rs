@@ -20,6 +20,9 @@
 
 #![cfg(unix)]
 
+use super::MMapError;
+use super::Result;
+
 use enumflags2::BitFlags;
 use libc::{c_int, c_void, off_t};
 
@@ -64,25 +67,21 @@ unsafe fn wrapped_mmap(
     libc::mmap(addr, len, prot.bits() as c_int, flags.bits() as c_int, fd, offset)
 }
 
-/// common errors from mmap
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum MMapError {
-    /// arguments provided to mmap is invalid
-    InvalidArguments,
-    /// too much memory has been locked
-    TryAgain,
-    /// no memory available, or
-    /// maximum number of mappings exceeded, or
-    /// `RLIMIT_DATA` exceeded
-    NoMemory,
-    /// number of pages overflows `unsigned long` (32-bit platform)
-    LengthOverflow,
-    /// errors not expected
-    UnknownError,
-    /// no error at all, NOT EXPECTED
-    /// should double-check implementation if received
-    NoError,
-}
+// the following copied from nix
+#[cfg(any(target_os = "netbsd", target_os = "openbsd", target_os = "android"))]
+use libc::__errno as errno_location;
+#[cfg(any(target_os = "linux", target_os = "emscripten", target_os = "redox"))]
+use libc::__errno_location as errno_location;
+#[cfg(any(target_os = "solaris", target_os = "illumos"))]
+use libc::___errno as errno_location;
+#[cfg(any(target_os = "macos", target_os = "freebsd"))]
+use libc::__error as errno_location;
+#[cfg(target_os = "haiku")]
+use libc::_errnop as errno_location;
+
+unsafe fn get_errno() -> c_int { *errno_location() }
+
+unsafe fn set_errno(e: c_int) { *errno_location() = e; }
 
 impl MMapError {
     /// get `MMapError` from an `errno` value
@@ -102,25 +101,6 @@ impl MMapError {
         Self::from_errno(get_errno())
     }
 }
-
-// the following copied from nix
-#[cfg(any(target_os = "netbsd", target_os = "openbsd", target_os = "android"))]
-use libc::__errno as errno_location;
-#[cfg(any(target_os = "linux", target_os = "emscripten", target_os = "redox"))]
-use libc::__errno_location as errno_location;
-#[cfg(any(target_os = "solaris", target_os = "illumos"))]
-use libc::___errno as errno_location;
-#[cfg(any(target_os = "macos", target_os = "freebsd"))]
-use libc::__error as errno_location;
-#[cfg(target_os = "haiku")]
-use libc::_errnop as errno_location;
-
-unsafe fn get_errno() -> c_int { *errno_location() }
-
-unsafe fn set_errno(e: c_int) { *errno_location() = e; }
-
-/// memory allocation results
-pub type Result<T> = core::result::Result<T, MMapError>;
 
 /// get the `PAGE_SIZE`
 pub fn get_page_size() -> Result<usize> {
