@@ -18,4 +18,6 @@
 
 //! memory-related types and utilities
 pub mod object;
+pub mod allocate;
+
 pub mod primitives;
