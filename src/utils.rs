@@ -19,20 +19,58 @@
 //! common memory-related utilities
 use core::ptr;
 use core::mem;
+use core::marker;
+use core::fmt;
 
 /// Memory address.
-pub type Memory = *mut u8;
+#[derive(Ord, PartialOrd, Eq, PartialEq)]
+pub struct Address<'a> {
+    address: *mut u8,
+    phantom: marker::PhantomData<&'a ()>,
+}
+
+impl<'a> fmt::Debug for Address<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Address {{ {:?} }}", self.address)
+    }
+}
+
+impl<'a, T> From<*mut T> for Address<'a> {
+    fn from(address: *mut T) -> Self {
+        Address { address: address as *mut u8, phantom: marker::PhantomData }
+    }
+}
+
+impl<'a> Address<'a> {
+    /// convert a `Memory` to a raw pointer
+    pub unsafe fn as_ptr<T>(&self) -> *mut T {
+        assert_aligned(self.address)
+    }
+
+    /// add an offset to a `Memory` address
+    pub unsafe fn offset(&self, count: isize) -> Self {
+        Address::from(self.address.offset(count))
+    }
+}
 
 /// Assert that some memory is properly aligned.
-pub fn assert_aligned<T>(mem: Memory) -> *mut T {
+pub fn assert_aligned<T>(mem: *mut u8) -> *mut T {
     assert_eq!(mem as usize % mem::align_of::<T>(), 0);
     mem as *mut T
 }
 
-/// Consumes a memory chunk.
-pub unsafe fn consume_mem<T>(mem: &mut Memory, n: usize) -> &mut [T] {
-    let res = ptr::slice_from_raw_parts_mut(assert_aligned(*mem), n);
+/// Consumes a memory chunk as a slice.
+pub unsafe fn consume_as_slice<'a, T>(mem: &mut Address<'a>, n: usize) -> &'a mut [T] {
+    let res = ptr::slice_from_raw_parts_mut(mem.as_ptr::<T>(), n);
     let bytes = mem::size_of::<T>() * n;
-    *mem = (*mem).offset(bytes as isize);
+    *mem = mem.offset(bytes as isize);
+    res.as_mut().unwrap()
+}
+
+/// Consumes a memory chunk as a reference.
+pub unsafe fn consume_as_ref<'a, T>(mem: &mut Address<'a>) -> &'a mut T {
+    let res = mem.as_ptr::<T>();
+    let bytes = mem::size_of::<T>();
+    *mem = mem.offset(bytes as isize);
     res.as_mut().unwrap()
 }

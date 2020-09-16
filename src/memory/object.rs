@@ -20,10 +20,11 @@
 use super::super::utils;
 
 /// object descriptors.
-#[allow(dead_code)]
 pub struct ObjectDescriptor {
-    unpacked_field_count: usize,
-    pointer_count: usize,
+    /// number of unpacked fields in objects described by this descriptor
+    pub unpacked_field_count: usize,
+    /// number of boxed fields (i.e. pointers) in objects described by this descriptor
+    pub pointer_count: usize,
 }
 
 impl ObjectDescriptor {
@@ -36,23 +37,38 @@ impl ObjectDescriptor {
     }
 }
 
-/// visit an object at some memory address.
-#[allow(dead_code)]
-pub unsafe fn visit_object(
-    mem: &mut utils::Memory,
-    handle_ctor: impl FnOnce(&mut ObjectDescriptor),
-    handle_unpacked: impl FnOnce(&mut [usize]),
-    mut handle_pointer: impl FnMut(&mut usize)) {
-    // descriptor
-    let desc = utils::assert_aligned::<ObjectDescriptor>(*mem).as_mut().unwrap();
-    // unpacked fields
-    let unpacked = utils::consume_mem(mem, desc.unpacked_field_count);
-    handle_unpacked(unpacked);
-    // pointer fields
-    let pointers = utils::consume_mem(mem, desc.pointer_count);
-    for p in pointers {
-        handle_pointer(p);
+/// an object
+pub struct Object<'a> {
+    /// the pointer to `ObjectDescriptor`
+    pub descriptor: &'a mut &'a ObjectDescriptor,
+    /// the unpacked fields
+    pub unpacked: &'a mut [usize],
+    /// the boxed fields (i.e. pointers)
+    pub pointers: &'a mut [&'a Object<'a>],
+}
+
+impl<'a> Object<'a> {
+    /// the total size for this object
+    /// see also `ObjectDescriptor::total_size`
+    pub fn total_size(&self) -> usize {
+        self.descriptor.total_size()
     }
-    // (possibly) mutate the descriptor
-    handle_ctor(desc);
+
+    /// the starting address of this object
+    pub fn start_address(&mut self) -> utils::Address<'a> {
+        utils::Address::from(self.descriptor as *mut _)
+    }
+}
+
+impl<'a> From<utils::Address<'a>> for Object<'a> {
+    fn from(mut address: utils::Address<'a>) -> Self {
+        unsafe {
+            let descriptor = utils::consume_as_ref::<&'a ObjectDescriptor>(&mut address);
+            let unpacked = utils::consume_as_slice::<usize>(
+                &mut address, descriptor.unpacked_field_count);
+            let pointers = utils::consume_as_slice::<&'a Object>(
+                &mut address, descriptor.pointer_count);
+            Object { descriptor, unpacked, pointers }
+        }
+    }
 }
