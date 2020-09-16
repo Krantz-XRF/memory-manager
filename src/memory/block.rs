@@ -18,12 +18,12 @@
 
 //! memory block
 use super::super::utils;
-use super::size::MiB;
+use super::size::KiB;
 use super::object;
 use core::marker::PhantomData;
 
 /// size of a `Block`
-pub const BLOCK_SIZE: usize = 1 * MiB;
+pub const BLOCK_SIZE: usize = 4 * KiB;
 
 /// size of a `Block` in `Word`s (`usize`s)
 pub const BLOCK_WORDS: usize = BLOCK_SIZE / core::mem::size_of::<usize>();
