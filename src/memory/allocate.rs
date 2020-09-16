@@ -25,7 +25,6 @@ pub use primitives::Protection;
 pub use primitives::MapFlags;
 pub use primitives::MMapError;
 pub use primitives::Result;
-use crate::memory::primitives::deallocate_chunk;
 
 /// a memory chunk
 #[derive(Debug, Eq, PartialEq)]
@@ -66,7 +65,7 @@ impl MemoryChunk {
 impl Drop for MemoryChunk {
     fn drop(&mut self) {
         unsafe {
-            deallocate_chunk(self.data as _, self.size)
+            primitives::deallocate_chunk(self.data as _, self.size)
                 .expect("failed to deallocate memory: ")
         }
     }
