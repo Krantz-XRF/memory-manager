@@ -16,10 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! memory-related types and utilities
-pub mod size;
-pub mod object;
-pub mod block;
-pub mod allocate;
+//! common size units
+#![allow(non_upper_case_globals)]
 
-pub mod primitives;
+/// size in Bytes
+pub const B: usize = 1;
+/// size in Kibibytes, as defined in IEC 60027-2
+pub const KiB: usize = 1024 * B;
+/// size in Mebibytes, as defined in IEC 60027-2
+pub const MiB: usize = 1024 * KiB;
+/// size in Gibibytes, as defined in IEC 60027-2
+pub const GiB: usize = 1024 * MiB;
