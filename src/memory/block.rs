@@ -20,7 +20,7 @@
 use super::super::utils;
 use super::size::KiB;
 use super::object;
-use core::marker::PhantomData;
+use core::marker;
 
 /// size of a `Block`
 pub const BLOCK_SIZE: usize = 4 * KiB;
@@ -31,11 +31,13 @@ pub const BLOCK_WORDS: usize = BLOCK_SIZE / core::mem::size_of::<usize>();
 /// memory block: collection of objects
 #[derive(Copy, Clone)]
 pub struct BlockDescriptor<'a> {
-    /// the starting address for this block
+    /// the starting address for this block.
+    /// invariant: at `start` there is a valid `ObjectDescriptor`.
     pub start: *mut u8,
-    /// the first free address in this block
+    /// the first free address in this block.
+    /// invariant: no pointers in the same block is after `free`.
     pub free: *mut u8,
-    phantom: PhantomData<&'a ()>,
+    phantom: marker::PhantomData<&'a ()>,
 }
 
 /// iterator for `Object`s
@@ -59,6 +61,11 @@ impl<'a> Iterator for ObjectIterator<'a> {
 }
 
 impl<'a> BlockDescriptor<'a> {
+    /// constructor for `BlockDescriptor`
+    pub fn new(start: *mut u8) -> BlockDescriptor<'a> {
+        BlockDescriptor { start, free: start, phantom: marker::PhantomData }
+    }
+
     /// iterate on the objects in this block
     pub fn objects(&self) -> ObjectIterator<'a> {
         ObjectIterator {
