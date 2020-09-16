@@ -18,6 +18,7 @@
 
 //! memory allocation utilities
 use super::primitives;
+use super::super::utils;
 
 use enumflags2::BitFlags;
 
@@ -50,15 +51,26 @@ impl MemoryChunk {
 
     /// the length of this chunk
     pub fn size(&self) -> usize { self.size }
+}
 
+impl<T> AsRef<[T]> for MemoryChunk {
     /// converts to a `u8` slice
-    pub fn as_ref(&self) -> &[u8] {
-        unsafe { core::ptr::slice_from_raw_parts(self.data, self.size).as_ref().unwrap() }
+    fn as_ref(&self) -> &[T] {
+        unsafe {
+            core::ptr::slice_from_raw_parts(
+                utils::assert_aligned(
+                    self.data), self.size).as_ref().unwrap()
+        }
     }
+}
 
+impl<T> AsMut<[T]> for MemoryChunk {
     /// converts to a mutable `u8` slice
-    pub fn as_mut(&mut self) -> &mut [u8] {
-        unsafe { core::ptr::slice_from_raw_parts_mut(self.data, self.size).as_mut().unwrap() }
+    fn as_mut(&mut self) -> &mut [T] {
+        unsafe {
+            core::ptr::slice_from_raw_parts_mut(utils::assert_aligned(
+                self.data), self.size).as_mut().unwrap()
+        }
     }
 }
 
