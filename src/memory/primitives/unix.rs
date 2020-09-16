@@ -102,12 +102,21 @@ impl MMapError {
     }
 }
 
+/// According to the Linux manual for `_SC_PAGESIZE`:
+///   Size of a page in bytes.  Must not be less than 1.
+static mut PAGE_SIZE: Option<core::num::NonZeroUsize> = None;
+
 /// get the `PAGE_SIZE`
 pub fn get_page_size() -> Result<usize> {
+    // use the cached value if successful calls have been made
+    unsafe { if let Some(res) = PAGE_SIZE { return Ok(res.get()); } }
+    // acquire the value
+    unsafe { set_errno(0) }
     let sz = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
     if sz < 0 {
         Err(unsafe { MMapError::get() })
     } else {
+        unsafe { PAGE_SIZE = Some(core::num::NonZeroUsize::new_unchecked(sz as usize)) }
         Ok(sz as usize)
     }
 }
