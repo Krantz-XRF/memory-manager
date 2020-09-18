@@ -23,7 +23,6 @@ use super::super::utils;
 use enumflags2::BitFlags;
 
 pub use primitives::Protection;
-pub use primitives::MapFlags;
 pub use primitives::MMapError;
 pub use primitives::Result;
 

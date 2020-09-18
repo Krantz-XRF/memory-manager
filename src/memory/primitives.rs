@@ -18,6 +18,7 @@
 
 //! memory allocation primitives
 mod unix;
+mod windows;
 
 /// common errors from mmap
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -48,10 +49,31 @@ use unix as detail;
 use windows as detail;
 
 pub use detail::Protection;
-pub use detail::MapFlags;
 
 pub use detail::get_page_size;
+pub use detail::get_minimum_alignment;
 
-pub use detail::allocate_chunk;
 pub use detail::aligned_allocate_chunk;
 pub use detail::deallocate_chunk;
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use super::Protection;
+    use super::get_minimum_alignment;
+    use super::aligned_allocate_chunk;
+    use super::deallocate_chunk;
+
+    #[test]
+    fn test_aligned_allocate_chunk() {
+        let page_size = get_minimum_alignment().unwrap();
+        let alignment = page_size * 2;
+        let size = alignment * 3;
+        let addr = unsafe {
+            aligned_allocate_chunk(alignment, size, Protection::NONE).unwrap()
+        };
+        assert_eq!(addr as usize % alignment, 0);
+        unsafe { deallocate_chunk(addr, size).unwrap() }
+    }
+}

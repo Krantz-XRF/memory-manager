@@ -121,6 +121,12 @@ pub fn get_page_size() -> Result<usize> {
     }
 }
 
+/// get the minimum alignment of memory chunks
+#[inline]
+pub fn get_minimum_alignment() -> Result<usize> {
+    get_page_size()
+}
+
 /// allocate a memory chunk with the given size and protection flags
 pub unsafe fn allocate_chunk(size: usize, protection: BitFlags<Protection>) -> Result<*mut c_void> {
     if size == 0 { return Err(MMapError::InvalidArguments); }
@@ -173,10 +179,6 @@ mod tests {
     extern crate std;
 
     use super::is_power_of_2;
-    use super::get_page_size;
-    use super::aligned_allocate_chunk;
-    use super::deallocate_chunk;
-    use super::Protection;
 
     #[test]
     fn test_is_power_of_2() {
@@ -184,17 +186,5 @@ mod tests {
         assert!(is_power_of_2(2));
         assert!(is_power_of_2(256));
         assert!(!is_power_of_2(257));
-    }
-
-    #[test]
-    fn test_aligned_allocate_chunk() {
-        let page_size = get_page_size().unwrap();
-        let alignment = page_size * 2;
-        let size = alignment * 3;
-        let addr = unsafe {
-            aligned_allocate_chunk(alignment, size, Protection::NONE).unwrap()
-        };
-        assert_eq!(addr as usize % alignment, 0);
-        unsafe { deallocate_chunk(addr, size).unwrap() };
     }
 }
