@@ -13,7 +13,10 @@ env:
 jobs:
   build:
     name: Build and Deploy Doc
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - name: Build
@@ -26,6 +29,7 @@ jobs:
       run: cp .github/pages/index.html ${{ env.DOC_PATH }}
     - name: Deploy Documentation
       uses: peaceiris/actions-gh-pages@v3
+      if: ${{ matrix.os == 'ubuntu-latest' }}
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ${{ env.DOC_PATH }}
