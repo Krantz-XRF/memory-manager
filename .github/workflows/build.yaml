@@ -12,10 +12,17 @@ env:
 
 jobs:
   build:
-    name: Build and Deploy Doc
+    name: ${{ matrix.readable_os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+        - os: ubuntu-latest
+          readable_os: Ubuntu
+        - os: windows-latest
+          readable_os: Windows
+        - os: macos-latest
+          readable_os: macOS
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
@@ -24,9 +31,10 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Generate Documentation
-      run: cargo doc
-    - name: Generate Redirecting index.html
-      run: cp .github/pages/index.html ${{ env.DOC_PATH }}
+      run: |
+        cargo doc
+        cp .github/pages/index.html ${{ env.DOC_PATH }}
+      if: ${{ matrix.os == 'ubuntu-latest' }}
     - name: Deploy Documentation
       uses: peaceiris/actions-gh-pages@v3
       if: ${{ matrix.os == 'ubuntu-latest' }}
