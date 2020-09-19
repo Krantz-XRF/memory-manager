@@ -72,6 +72,7 @@ impl<'a> Address<'a> {
     /// # Panics
     ///
     /// This function `assert!` that the memory address is properly aligned for `T`.
+    /// See also [`assert_aligned`](fn.assert_aligned.html).
     ///
     /// The following use would panic:
     ///
@@ -100,7 +101,7 @@ impl<'a> Address<'a> {
 
 /// Assert that some memory is properly aligned.
 ///
-/// Given an `Address`, check the alignment, coerce the pointer to `*mut T`.
+/// Given an [`Address`](struct.Address.html), check the alignment, coerce the pointer to `*mut T`.
 ///
 /// # Panics
 ///
@@ -119,7 +120,8 @@ pub fn assert_aligned<T>(mem: *mut u8) -> *mut T {
 
 /// Consumes a memory chunk as a slice.
 ///
-/// Construct a slice with a given length from the current `Address`, then advance it.
+/// Construct a slice with a given length from the current [`Address`](struct.Address.html),
+/// then advance it.
 ///
 /// ```
 /// use memory_manager::utils::{consume_as_slice, Address};
@@ -142,7 +144,7 @@ pub unsafe fn consume_as_slice<'a, T>(mem: &mut Address<'a>, n: usize) -> &'a mu
 
 /// Consumes a memory chunk as a reference.
 ///
-/// Construct a reference from the current `Address`, then advance it.
+/// Construct a reference from the current [`Address`](struct.Address.html), then advance it.
 ///
 /// ```
 /// use memory_manager::utils::{consume_as_ref, Address};
