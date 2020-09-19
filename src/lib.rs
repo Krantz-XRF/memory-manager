@@ -22,6 +22,8 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(unused_variables)]
+#![doc(test(attr(deny(warnings))))]
+#![doc(test(attr(allow(unused_variables))))]
 
 pub mod memory;
 pub mod utils;

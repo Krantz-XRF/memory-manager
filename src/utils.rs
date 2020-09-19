@@ -16,13 +16,34 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! common memory-related utilities
+//! Common memory-related utilities.
 use core::ptr;
 use core::mem;
 use core::marker;
 use core::fmt;
 
-/// Memory address.
+/// Memory address with a valid lifetime.
+///
+/// We need this because raw pointers does not have a lifetime attached. Note that an `Address`
+/// can be constructed from a raw pointer, and the lifetime attached is ARBITRARY, so it is on the
+/// caller to guarantee the correct lifetime is specified.
+///
+/// # Construct from raw pointer
+///
+/// ```
+/// use memory_manager::utils::Address;
+/// let raw_p = 0xDEAD_BEEF as *mut ();
+/// let addr = Address::from(raw_p);
+/// ```
+///
+/// # Debug format
+///
+/// ```
+/// # use memory_manager::utils::Address;
+/// # let raw_p = 0xDEAD_BEEF as *mut ();
+/// # let addr = Address::from(raw_p);
+/// assert_eq!(format!("{:?}", addr), "Address(0xdeadbeef)");
+/// ```
 #[derive(Ord, PartialOrd, Eq, PartialEq)]
 pub struct Address<'a> {
     address: *mut u8,
@@ -31,7 +52,7 @@ pub struct Address<'a> {
 
 impl<'a> fmt::Debug for Address<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Address {{ {:?} }}", self.address)
+        f.debug_tuple("Address").field(&self.address).finish()
     }
 }
 
@@ -42,24 +63,76 @@ impl<'a, T> From<*mut T> for Address<'a> {
 }
 
 impl<'a> Address<'a> {
-    /// convert a `Memory` to a raw pointer
-    pub unsafe fn as_ptr<T>(&self) -> *mut T {
+    /// Convert an `Address` to a raw pointer of some type `T`.
+    ///
+    /// Note that raw pointers do not have lifetime attached, so the lifetime is dropped after
+    /// converting to a raw pointer. This should not give rise to any unsafety, as long as the
+    /// `Address` was constructed correctly.
+    ///
+    /// # Panics
+    ///
+    /// This function `assert!` that the memory address is properly aligned for `T`.
+    ///
+    /// The following use would panic:
+    ///
+    /// ```should_panic
+    /// use memory_manager::utils::Address;
+    /// let addr = Address::from(0xDEAD_BEEF as *mut ());
+    /// let raw_p = addr.as_ptr::<usize>();
+    /// ```
+    pub fn as_ptr<T>(&self) -> *mut T {
         assert_aligned(self.address)
     }
 
-    /// add an offset to a `Memory` address
+    /// Add an offset to an `Address`.
+    ///
+    /// This method is analogous to `*mut T::offset`.
+    ///
+    /// ```
+    /// use memory_manager::utils::Address;
+    /// let addr = Address::from(0x1000 as *mut ());
+    /// assert_eq!(unsafe { addr.offset(4isize) }, Address::from(0x1004 as *mut ()));
+    /// ```
     pub unsafe fn offset(&self, count: isize) -> Self {
         Address::from(self.address.offset(count))
     }
 }
 
 /// Assert that some memory is properly aligned.
+///
+/// Given an `Address`, check the alignment, coerce the pointer to `*mut T`.
+///
+/// # Panics
+///
+/// Panics if input is NOT properly aligned for `T`.
+///
+/// The following use would panic:
+///
+/// ```should_panic
+/// use memory_manager::utils::assert_aligned;
+/// let raw_p = assert_aligned::<usize>(0xDEAD_BEEF as *mut u8);
+/// ```
 pub fn assert_aligned<T>(mem: *mut u8) -> *mut T {
     assert_eq!(mem as usize % mem::align_of::<T>(), 0);
     mem as *mut T
 }
 
 /// Consumes a memory chunk as a slice.
+///
+/// Construct a slice with a given length from the current `Address`, then advance it.
+///
+/// ```
+/// use memory_manager::utils::{consume_as_slice, Address};
+/// let mut addr = Address::from(0x1000 as *mut u8);
+/// let _ = unsafe { consume_as_slice::<usize>(&mut addr, 20) };
+/// assert_eq!(
+///     addr,
+///     unsafe {
+///         Address::from(0x1000 as *mut u8).offset(
+///             core::mem::size_of::<usize>() as isize * 20)
+///     }
+/// );
+/// ```
 pub unsafe fn consume_as_slice<'a, T>(mem: &mut Address<'a>, n: usize) -> &'a mut [T] {
     let res = ptr::slice_from_raw_parts_mut(mem.as_ptr::<T>(), n);
     let bytes = mem::size_of::<T>() * n;
@@ -68,6 +141,21 @@ pub unsafe fn consume_as_slice<'a, T>(mem: &mut Address<'a>, n: usize) -> &'a mu
 }
 
 /// Consumes a memory chunk as a reference.
+///
+/// Construct a reference from the current `Address`, then advance it.
+///
+/// ```
+/// use memory_manager::utils::{consume_as_ref, Address};
+/// let mut addr = Address::from(0x1000 as *mut u8);
+/// let _ = unsafe { consume_as_ref::<usize>(&mut addr) };
+/// assert_eq!(
+///     addr,
+///     unsafe {
+///         Address::from(0x1000 as *mut u8).offset(
+///             core::mem::size_of::<usize>() as isize)
+///     }
+/// );
+/// ```
 pub unsafe fn consume_as_ref<'a, T>(mem: &mut Address<'a>) -> &'a mut T {
     let res = mem.as_ptr::<T>();
     let bytes = mem::size_of::<T>();
