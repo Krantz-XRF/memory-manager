@@ -25,8 +25,11 @@
 #![doc(test(attr(deny(warnings))))]
 #![doc(test(attr(allow(unused_variables))))]
 
-pub mod memory;
-pub mod utils;
+pub mod common;
+pub mod object;
+pub mod block;
+pub mod allocate;
+pub mod primitives;
 
 #[cfg(test)]
 extern crate std;

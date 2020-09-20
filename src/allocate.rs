@@ -18,7 +18,7 @@
 
 //! memory allocation utilities
 use super::primitives;
-use super::super::utils;
+use super::common;
 
 use enumflags2::BitFlags;
 
@@ -57,7 +57,7 @@ impl<T> AsRef<[T]> for MemoryChunk {
     fn as_ref(&self) -> &[T] {
         unsafe {
             core::ptr::slice_from_raw_parts(
-                utils::assert_aligned(
+                common::assert_aligned(
                     self.data), self.size).as_ref().unwrap()
         }
     }
@@ -67,7 +67,7 @@ impl<T> AsMut<[T]> for MemoryChunk {
     /// converts to a mutable `u8` slice
     fn as_mut(&mut self) -> &mut [T] {
         unsafe {
-            core::ptr::slice_from_raw_parts_mut(utils::assert_aligned(
+            core::ptr::slice_from_raw_parts_mut(common::assert_aligned(
                 self.data), self.size).as_mut().unwrap()
         }
     }

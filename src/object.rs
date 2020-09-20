@@ -17,7 +17,7 @@
  */
 
 //! an object is a collection of pointers
-use super::super::utils;
+use super::common;
 
 /// object descriptors.
 pub struct ObjectDescriptor {
@@ -55,18 +55,18 @@ impl<'a> Object<'a> {
     }
 
     /// the starting address of this object
-    pub fn start_address(&mut self) -> utils::Address<'a> {
-        utils::Address::from(self.descriptor as *mut _)
+    pub fn start_address(&mut self) -> common::Address<'a> {
+        common::Address::from(self.descriptor as *mut _)
     }
 }
 
-impl<'a> From<utils::Address<'a>> for Object<'a> {
-    fn from(mut address: utils::Address<'a>) -> Self {
+impl<'a> From<common::Address<'a>> for Object<'a> {
+    fn from(mut address: common::Address<'a>) -> Self {
         unsafe {
-            let descriptor = utils::consume_as_ref::<&'a ObjectDescriptor>(&mut address);
-            let unpacked = utils::consume_as_slice::<usize>(
+            let descriptor = common::consume_as_ref::<&'a ObjectDescriptor>(&mut address);
+            let unpacked = common::consume_as_slice::<usize>(
                 &mut address, descriptor.unpacked_field_count);
-            let pointers = utils::consume_as_slice::<&'a Object>(
+            let pointers = common::consume_as_slice::<&'a Object>(
                 &mut address, descriptor.pointer_count);
             Object { descriptor, unpacked, pointers }
         }

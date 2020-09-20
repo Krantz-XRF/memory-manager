@@ -17,10 +17,10 @@
  */
 
 //! memory block
-use super::super::utils;
-use super::size::KiB;
+use super::common;
 use super::object;
 use core::marker;
+use common::KiB;
 
 /// size of a `Block`
 pub const BLOCK_SIZE: usize = 4 * KiB;
@@ -43,7 +43,7 @@ pub struct BlockDescriptor<'a> {
 /// iterator for `Object`s
 pub struct ObjectIterator<'a> {
     current: object::Object<'a>,
-    boundary: utils::Address<'a>,
+    boundary: common::Address<'a>,
 }
 
 impl<'a> Iterator for ObjectIterator<'a> {
@@ -69,8 +69,8 @@ impl<'a> BlockDescriptor<'a> {
     /// iterate on the objects in this block
     pub fn objects(&self) -> ObjectIterator<'a> {
         ObjectIterator {
-            current: object::Object::from(utils::Address::from(self.start)),
-            boundary: utils::Address::from(self.free),
+            current: object::Object::from(common::Address::from(self.start)),
+            boundary: common::Address::from(self.free),
         }
     }
 }

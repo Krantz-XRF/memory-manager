@@ -31,7 +31,7 @@ use core::fmt;
 /// # Construct from raw pointer
 ///
 /// ```
-/// use memory_manager::utils::Address;
+/// use memory_manager::common::Address;
 /// let raw_p = 0xDEAD_BEEF as *mut ();
 /// let addr = Address::from(raw_p);
 /// ```
@@ -39,7 +39,7 @@ use core::fmt;
 /// # Debug format
 ///
 /// ```
-/// # use memory_manager::utils::Address;
+/// # use memory_manager::common::Address;
 /// # let raw_p = 0xDEAD_BEEF as *mut ();
 /// # let addr = Address::from(raw_p);
 /// assert_eq!(format!("{:?}", addr), "Address(0xdeadbeef)");
@@ -77,7 +77,7 @@ impl<'a> Address<'a> {
     /// The following use would panic:
     ///
     /// ```should_panic
-    /// use memory_manager::utils::Address;
+    /// use memory_manager::common::Address;
     /// let addr = Address::from(0xDEAD_BEEF as *mut ());
     /// let raw_p = addr.as_ptr::<usize>();
     /// ```
@@ -90,7 +90,7 @@ impl<'a> Address<'a> {
     /// This method is analogous to `*mut T::offset`.
     ///
     /// ```
-    /// use memory_manager::utils::Address;
+    /// use memory_manager::common::Address;
     /// let addr = Address::from(0x1000 as *mut ());
     /// assert_eq!(unsafe { addr.offset(4isize) }, Address::from(0x1004 as *mut ()));
     /// ```
@@ -110,7 +110,7 @@ impl<'a> Address<'a> {
 /// The following use would panic:
 ///
 /// ```should_panic
-/// use memory_manager::utils::assert_aligned;
+/// use memory_manager::common::assert_aligned;
 /// let raw_p = assert_aligned::<usize>(0xDEAD_BEEF as *mut u8);
 /// ```
 pub fn assert_aligned<T>(mem: *mut u8) -> *mut T {
@@ -124,7 +124,7 @@ pub fn assert_aligned<T>(mem: *mut u8) -> *mut T {
 /// then advance it.
 ///
 /// ```
-/// use memory_manager::utils::{consume_as_slice, Address};
+/// use memory_manager::common::{consume_as_slice, Address};
 /// let mut addr = Address::from(0x1000 as *mut u8);
 /// let _ = unsafe { consume_as_slice::<usize>(&mut addr, 20) };
 /// assert_eq!(
@@ -147,7 +147,7 @@ pub unsafe fn consume_as_slice<'a, T>(mem: &mut Address<'a>, n: usize) -> &'a mu
 /// Construct a reference from the current [`Address`](struct.Address.html), then advance it.
 ///
 /// ```
-/// use memory_manager::utils::{consume_as_ref, Address};
+/// use memory_manager::common::{consume_as_ref, Address};
 /// let mut addr = Address::from(0x1000 as *mut u8);
 /// let _ = unsafe { consume_as_ref::<usize>(&mut addr) };
 /// assert_eq!(
@@ -164,3 +164,15 @@ pub unsafe fn consume_as_ref<'a, T>(mem: &mut Address<'a>) -> &'a mut T {
     *mem = mem.offset(bytes as isize);
     res.as_mut().unwrap()
 }
+
+/// size in Bytes
+pub const B: usize = 1;
+/// size in Kibibytes, as defined in IEC 60027-2
+#[allow(non_upper_case_globals)]
+pub const KiB: usize = 1024 * B;
+/// size in Mebibytes, as defined in IEC 60027-2
+#[allow(non_upper_case_globals)]
+pub const MiB: usize = 1024 * KiB;
+/// size in Gibibytes, as defined in IEC 60027-2
+#[allow(non_upper_case_globals)]
+pub const GiB: usize = 1024 * MiB;
