@@ -16,45 +16,61 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! an object is a collection of pointers
+//! An object is effectively a collection of pointers.
 use super::common;
 
-/// object descriptors.
+/// Object descriptors.
+///
+/// # Object Layout
+///
+/// ```text
+/// +-----------------------+-----------------+----------+
+/// | pointer to descriptor | unpacked fields | pointers |
+/// +-----------------------+-----------------+----------+
+/// ```
+///
+/// All unpacked fields are gathered at the front of the object. Therefore, all the pointer fields
+/// are left at the back. This makes the object descriptor simple: 2 words determines the layout.
 pub struct ObjectDescriptor {
-    /// number of unpacked fields in objects described by this descriptor
+    /// Number of unpacked fields in objects described by this descriptor.
     pub unpacked_field_count: usize,
-    /// number of boxed fields (i.e. pointers) in objects described by this descriptor
+    /// Number of boxed fields (i.e. pointers) in objects described by this descriptor.
     pub pointer_count: usize,
 }
 
 impl ObjectDescriptor {
-    /// the total size occupied by this kind of object
+    /// The total size occupied by this kind of object.
+    /// Always aligned to a `Word` (i.e. `usize`).
+    ///
+    /// Size is calculated as follows:
+    ///
+    /// - Descriptor Pointer: 1 word
+    /// - Unpacked Fields: 1 word/each
+    /// - Pointers: 1 word/each
     pub fn total_size(&self) -> usize {
-        // descriptor pointer: 1 word
-        // unpacked fields: 1 word/each
-        // pointers: 1 word/each
         1 + self.unpacked_field_count + self.pointer_count
     }
 }
 
-/// an object
+/// An object, with a lifetime attached.
 pub struct Object<'a> {
-    /// the pointer to `ObjectDescriptor`
+    /// The pointer to `ObjectDescriptor`.
     pub descriptor: &'a mut &'a ObjectDescriptor,
-    /// the unpacked fields
+    /// The unpacked fields.
     pub unpacked: &'a mut [usize],
-    /// the boxed fields (i.e. pointers)
+    /// The boxed fields (i.e. pointers).
     pub pointers: &'a mut [&'a Object<'a>],
 }
 
 impl<'a> Object<'a> {
-    /// the total size for this object
-    /// see also `ObjectDescriptor::total_size`
+    /// The total size for this object.
+    /// See also [`ObjectDescriptor::total_size`](struct.ObjectDescriptor.html#method.total_size).
     pub fn total_size(&self) -> usize {
         self.descriptor.total_size()
     }
 
-    /// the starting address of this object
+    /// The starting address of this object, i.e. where the pointer to
+    /// [`ObjectDescriptor`](struct.ObjectDescriptor.html) is stored.
     pub fn start_address(&mut self) -> common::Address<'a> {
         common::Address::from(self.descriptor as *mut _)
     }

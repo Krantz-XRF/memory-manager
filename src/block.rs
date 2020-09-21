@@ -22,25 +22,40 @@ use super::object;
 use core::marker;
 use common::KiB;
 
-/// size of a `Block`
+/// Size of a `Block`.
 pub const BLOCK_SIZE: usize = 4 * KiB;
 
-/// size of a `Block` in `Word`s (`usize`s)
+/// Size of a `Block` in `Word`s (`usize`s).
 pub const BLOCK_WORDS: usize = BLOCK_SIZE / core::mem::size_of::<usize>();
 
-/// memory block: collection of objects
+/// Memory block: collection of objects.
+///
+/// # Block Layout
+///
+/// ```text
+/// +----------+----------+-----+----------+--------------+
+/// | reserved | object 0 | ... | object N | not used yet |
+/// +----------+----------+-----+----------+--------------+
+///            ^                           ^
+///            |                           |
+///          start                        free
+/// ```
+///
+/// - Reserved space: we may reserved some space to avoid `malloc`, etc.
+/// - object 1 ~ N: objects managed by this `memory-manager`.
+/// - not used yet: for future allocation, or wasted due to fragmentation.
 #[derive(Copy, Clone)]
 pub struct BlockDescriptor<'a> {
-    /// the starting address for this block.
-    /// invariant: at `start` there is a valid `ObjectDescriptor`.
+    /// The starting address for this block.
+    /// **Invariant**: at `start` there is a valid `ObjectDescriptor`.
     pub start: *mut u8,
-    /// the first free address in this block.
-    /// invariant: no pointers in the same block is after `free`.
+    /// The first free address in this block.
+    /// **Invariant**: no pointers in the same block is after `free`.
     pub free: *mut u8,
     phantom: marker::PhantomData<&'a ()>,
 }
 
-/// iterator for `Object`s
+/// Iterator for `Object`s.
 pub struct ObjectIterator<'a> {
     current: object::Object<'a>,
     boundary: common::Address<'a>,
@@ -61,12 +76,12 @@ impl<'a> Iterator for ObjectIterator<'a> {
 }
 
 impl<'a> BlockDescriptor<'a> {
-    /// constructor for `BlockDescriptor`
+    /// Constructor for `BlockDescriptor`.
     pub fn new(start: *mut u8) -> BlockDescriptor<'a> {
         BlockDescriptor { start, free: start, phantom: marker::PhantomData }
     }
 
-    /// iterate on the objects in this block
+    /// Iterate on the objects in this block.
     pub fn objects(&self) -> ObjectIterator<'a> {
         ObjectIterator {
             current: object::Object::from(common::Address::from(self.start)),

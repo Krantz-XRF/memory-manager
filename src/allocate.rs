@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! memory allocation utilities
+//! Memory allocation utilities.
 use super::primitives;
 use super::common;
 
@@ -26,7 +26,19 @@ pub use primitives::Protection;
 pub use primitives::MMapError;
 pub use primitives::Result;
 
-/// a memory chunk
+/// Memory chunk.
+///
+/// Automatically deallocates the memory when dropped.
+///
+/// ```
+/// use memory_manager::allocate::{MemoryChunk, Protection};
+/// use memory_manager::primitives::get_minimum_alignment;
+/// # use memory_manager::primitives::MMapError;
+/// let a = get_minimum_alignment()?;
+/// let chunk = MemoryChunk::new(a, 4096, Protection::NONE)?;
+/// // memory is deallocated here
+/// # Ok::<(), MMapError>(())
+/// ```
 #[derive(Debug, Eq, PartialEq)]
 pub struct MemoryChunk {
     data: *mut u8,
@@ -34,7 +46,7 @@ pub struct MemoryChunk {
 }
 
 impl MemoryChunk {
-    /// allocate a memory chunk with the provided `alignment`, `size`, and `protection`
+    /// Allocate a memory chunk with the provided `alignment`, `size`, and `protection`.
     pub fn new(alignment: usize, size: usize, protection: BitFlags<Protection>) -> Result<Self> {
         Ok(MemoryChunk {
             data: unsafe {
@@ -45,15 +57,19 @@ impl MemoryChunk {
         })
     }
 
-    /// pointer to the starting address of this chunk
+    /// Pointer to the starting address of this chunk.
     pub fn data(&self) -> *mut u8 { self.data }
 
-    /// the length of this chunk
+    /// Length of this chunk.
     pub fn size(&self) -> usize { self.size }
 }
 
 impl<T> AsRef<[T]> for MemoryChunk {
-    /// converts to a `u8` slice
+    /// Converts to a slice of some type `T`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `data` is not properly aligned for `T`.
     fn as_ref(&self) -> &[T] {
         unsafe {
             core::ptr::slice_from_raw_parts(
@@ -64,7 +80,11 @@ impl<T> AsRef<[T]> for MemoryChunk {
 }
 
 impl<T> AsMut<[T]> for MemoryChunk {
-    /// converts to a mutable `u8` slice
+    /// Converts to a mutable slice of some type `T`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `data` is not properly aligned for `T`.
     fn as_mut(&mut self) -> &mut [T] {
         unsafe {
             core::ptr::slice_from_raw_parts_mut(common::assert_aligned(
