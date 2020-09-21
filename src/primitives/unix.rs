@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! memory allocation primitives for UNIX
+//! Memory allocation primitives for UNIX-like systems.
 
 #![cfg(unix)]
 
@@ -26,35 +26,51 @@ use super::Result;
 use enumflags2::BitFlags;
 use libc::{c_int, c_void, off_t};
 
-/// memory protection flags
+/// Memory protection flags.
+///
+/// These can be combined together using the `|` operator:
+///
+/// ```
+/// use memory_manager::allocate::Protection;
+/// let protection = Protection::Read | Protection::Write;
+/// ```
+///
+/// If no access should be performed to the memory, use `Protection::NONE`:
+///
+/// ```
+/// use memory_manager::allocate::Protection;
+/// let protection = Protection::NONE;
+/// ```
+///
+/// Note that not all combinations are supported on Windows: `Write` will always imply `Read`.
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, BitFlags)]
 pub enum Protection {
-    /// Pages may be read
+    /// Pages may be read.
     Read = libc::PROT_READ as u32,
-    /// Pages may be written
+    /// Pages may be written.
     Write = libc::PROT_WRITE as u32,
-    /// Pages may be executed
+    /// Pages may be executed.
     Exec = libc::PROT_EXEC as u32,
 }
 
 impl Protection {
-    /// Pages may not be accessed
+    /// Pages may not be accessed.
     #[allow(dead_code)]
     pub const NONE: BitFlags<Protection> = unsafe { core::mem::transmute(0u32) };
 }
 
-/// mmap flags
+/// `mmap` flags on UNIX-like systems.
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, BitFlags)]
 pub enum MapFlags {
-    /// Share this mapping (updates visible to other processes)
+    /// Share this mapping (updates visible to other processes).
     Shared = libc::MAP_SHARED as u32,
-    /// Private copy-on-write mapping
+    /// Private copy-on-write mapping.
     Private = libc::MAP_PRIVATE as u32,
-    /// The mapping is not backed by any file; its contents are initialized to zero
+    /// The mapping is not backed by any file; its contents are initialized to zero.
     Anonymous = libc::MAP_ANONYMOUS as u32,
-    /// Do not reserve swap space for this mapping
+    /// Do not reserve swap space for this mapping.
     NoReserve = libc::MAP_NORESERVE as u32,
 }
 
@@ -84,7 +100,7 @@ unsafe fn get_errno() -> c_int { *errno_location() }
 unsafe fn set_errno(e: c_int) { *errno_location() = e; }
 
 impl MMapError {
-    /// get `MMapError` from an `errno` value
+    /// Get `MMapError` from an `errno` value.
     pub fn from_errno(e: c_int) -> MMapError {
         match e {
             libc::EINVAL => MMapError::InvalidArguments,
@@ -96,7 +112,7 @@ impl MMapError {
         }
     }
 
-    /// get `MMapError` from the current `errno` value
+    /// Get `MMapError` from the current `errno` value.
     pub unsafe fn get() -> MMapError {
         Self::from_errno(get_errno())
     }
@@ -106,7 +122,7 @@ impl MMapError {
 ///   Size of a page in bytes.  Must not be less than 1.
 static mut PAGE_SIZE: Option<core::num::NonZeroUsize> = None;
 
-/// get the `PAGE_SIZE`
+/// Get the `PAGE_SIZE`. This function is cached.
 pub fn get_page_size() -> Result<usize> {
     // use the cached value if successful calls have been made
     unsafe { if let Some(res) = PAGE_SIZE { return Ok(res.get()); } }
@@ -121,13 +137,14 @@ pub fn get_page_size() -> Result<usize> {
     }
 }
 
-/// get the minimum alignment of memory chunks
+/// Get the minimum alignment of memory chunks.
+/// On UNIX-like systems it is the same as `PAGE_SIZE`.
 #[inline]
 pub fn get_minimum_alignment() -> Result<usize> {
     get_page_size()
 }
 
-/// allocate a memory chunk with the given size and protection flags
+/// Allocate a memory chunk with the given size and protection flags.
 pub unsafe fn allocate_chunk(size: usize, protection: BitFlags<Protection>) -> Result<*mut c_void> {
     if size == 0 { return Err(MMapError::InvalidArguments); }
     set_errno(0);
@@ -143,7 +160,7 @@ pub unsafe fn allocate_chunk(size: usize, protection: BitFlags<Protection>) -> R
     }
 }
 
-/// deallocate a memory chunk
+/// Deallocate a memory chunk.
 pub unsafe fn deallocate_chunk(addr: *mut c_void, size: usize) -> Result<()> {
     set_errno(0);
     if libc::munmap(addr, size) < 0 {
@@ -157,12 +174,18 @@ fn is_power_of_2(x: usize) -> bool {
     (x - 1) & x == 0
 }
 
-/// allocate an aligned memory chunk with the given alignment, size and protection flags
+/// Allocate an aligned memory chunk with the given alignment, size and protection flags.
+///
+/// The size is rounded up to a multiple of the alignment.
+///
+/// # Panics
+///
+/// The alignment is asserted to be a multiple of `PAGE_SIZE` **AND** a power of 2.
 pub unsafe fn aligned_allocate_chunk(
     alignment: usize, size: usize, protection: BitFlags<Protection>) -> Result<*mut c_void> {
     assert!(is_power_of_2(alignment));
-    assert_eq!(size % alignment, 0);
     let alignment_mask = alignment - 1;
+    let size = (size + alignment - 1) & !alignment_mask;
     let res = allocate_chunk(size + alignment, protection)?;
     let back_padding = res as usize & alignment_mask;
     let front_padding = alignment - back_padding;

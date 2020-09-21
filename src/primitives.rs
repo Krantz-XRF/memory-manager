@@ -16,31 +16,40 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//! memory allocation primitives
+//! Memory allocation primitives.
 mod unix;
 mod windows;
 
-/// common errors from mmap
+/// Common errors from `mmap`.
+///
+/// Error codes on Windows is far more complicated then `errno` on UNIX-like systems. Also, we
+/// don't know what error code can be caused by an API call, for they are both not documented
+/// and officially-announced as unstable. Therefore on Windows, we try our best to match on
+/// the error, but likely some errors would still end up as an `UnknownError`.
+///
+/// **Note**: items marked as UNIX-specific will not show up on Windows.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum MMapError {
-    /// arguments provided to mmap is invalid
+    /// Arguments provided to `mmap` is invalid.
     InvalidArguments,
-    /// too much memory has been locked
+    /// (UNIX-specific) Too much memory has been locked.
     TryAgain,
-    /// no memory available, or
-    /// maximum number of mappings exceeded, or
-    /// `RLIMIT_DATA` exceeded
+    /// (UNIX-specific) Any of the following applies:
+    /// - No memory available, or
+    /// - Maximum number of mappings exceeded, or
+    /// - `RLIMIT_DATA` exceeded
     NoMemory,
-    /// number of pages overflows `unsigned long` (32-bit platform)
+    /// Number of pages overflows `unsigned long`.
+    /// (32-bit platform only, UNIX-specific)
     LengthOverflow,
-    /// errors not expected
+    /// Errors not recognized, with the raw error code on the host system.
     UnknownError(u32),
-    /// no error at all, NOT EXPECTED
-    /// should double-check implementation if received
+    /// No error at all, NOT EXPECTED.
+    /// Whenever received, this should be considered as a bug in the implementation.
     NoError,
 }
 
-/// memory allocation results
+/// Memory allocation results.
 pub type Result<T> = core::result::Result<T, MMapError>;
 
 #[cfg(unix)]

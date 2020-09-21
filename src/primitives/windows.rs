@@ -65,15 +65,31 @@ const PAGE_READWRITE: ULONG = 0x04;
 #[allow(dead_code)]
 const PAGE_WRITECOPY: ULONG = 0x08;
 
-/// memory protection flags
+/// Memory protection flags.
+///
+/// These can be combined together using the `|` operator:
+///
+/// ```
+/// use memory_manager::allocate::Protection;
+/// let protection = Protection::Read | Protection::Write;
+/// ```
+///
+/// If no access should be performed to the memory, use `Protection::NONE`:
+///
+/// ```
+/// use memory_manager::allocate::Protection;
+/// let protection = Protection::NONE;
+/// ```
+///
+/// Note that not all combinations are supported on Windows: `Write` will always imply `Read`.
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, BitFlags)]
 pub enum Protection {
-    /// Pages may be read
+    /// Pages may be read.
     Read = 1,
-    /// Pages may be written
+    /// Pages may be written.
     Write = 2,
-    /// Pages may be executed
+    /// Pages may be executed.
     Exec = 4,
 }
 
@@ -89,7 +105,7 @@ fn make_protection_flag(protection: BitFlags<Protection>) -> ULONG {
 }
 
 impl Protection {
-    /// Pages may not be accessed
+    /// Pages may not be accessed.
     pub const NONE: BitFlags<Protection> = unsafe { core::mem::transmute(0) };
 }
 
@@ -169,12 +185,19 @@ fn get_sys_info() -> &'static SYSTEM_INFO {
     }
 }
 
-/// get the `PAGE_SIZE`
+/// Get the `PAGE_SIZE`.
 pub fn get_page_size() -> Result<usize> {
     Ok(get_sys_info().dwPageSize as usize)
 }
 
-/// get the minimum alignment of memory chunks
+/// Get the minimum alignment of memory chunks.
+///
+/// It is generally NOT equal to `PAGE_SIZE` on Windows. Not following this alignment requirement
+/// is NOT guarded by an `assert!`, but [`aligned_allocate_chunk`] will fail with `InvalidArguments`.
+///
+/// See also [`aligned_allocate_chunk`].
+///
+/// [`aligned_allocate_chunk`]: fn.aligned_allocate_chunk.html
 pub fn get_minimum_alignment() -> Result<usize> {
     Ok(get_sys_info().dwAllocationGranularity as usize)
 }
@@ -183,7 +206,11 @@ fn to_void_p<T>(p: &mut T) -> *mut c_void {
     p as *mut T as *mut c_void
 }
 
-/// allocate an aligned memory chunk with the given alignment, size and protection flags
+/// Allocate an aligned memory chunk with the given alignment, size and protection flags.
+///
+/// Unlike on UNIX-like systems, aligned raw memory allocation is properly supported by an API
+/// named `VirtualAlloc2`. Thus we are not manually aligning the allocated memory. This means
+/// calling this function with a bad alignment will not panic, but will fail with `InvalidArguments`.
 pub unsafe fn aligned_allocate_chunk(
     alignment: usize, size: usize, protection: BitFlags<Protection>) -> Result<*mut c_void> {
     let mut address_reqs: MEM_ADDRESS_REQUIREMENTS = core::mem::zeroed();
@@ -202,7 +229,8 @@ pub unsafe fn aligned_allocate_chunk(
     }
 }
 
-/// deallocate a memory chunk
+/// Deallocate a memory chunk. If some memory address other than those returned by
+/// `aligned_allocate_chunk` is passed to this function, it will fail with `InvalidArguments`.
 pub unsafe fn deallocate_chunk(addr: *mut c_void, _size: usize) -> Result<()> {
     if 0 != VirtualFree(addr, 0, MEM_RELEASE) {
         Ok(())
