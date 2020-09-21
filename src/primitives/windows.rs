@@ -23,8 +23,10 @@
 use winapi::um::winnt::{PVOID, HANDLE};
 use winapi::um::memoryapi::VirtualFree;
 use winapi::um::sysinfoapi::{GetSystemInfo, SYSTEM_INFO};
+use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::basetsd::{DWORD64, SIZE_T};
 use winapi::shared::minwindef::{ULONG, DWORD};
+use winapi::shared::winerror::*;
 use winapi::ctypes::c_void;
 
 use super::MMapError;
@@ -136,6 +138,22 @@ struct MEM_ADDRESS_REQUIREMENTS {
     alignment: SIZE_T,
 }
 
+impl MMapError {
+    /// Get `MMapError` from an error code.
+    pub fn from_errno(e: DWORD) -> MMapError {
+        match e {
+            ERROR_INVALID_PARAMETER => MMapError::InvalidArguments,
+            ERROR_SUCCESS => MMapError::NoError,
+            _ => MMapError::UnknownError(e),
+        }
+    }
+
+    /// Get `MMapError` from the current system error code.
+    pub unsafe fn get() -> MMapError {
+        Self::from_errno(GetLastError())
+    }
+}
+
 static mut SYS_INFO: Option<SYSTEM_INFO> = None;
 
 fn get_sys_info() -> &'static SYSTEM_INFO {
@@ -180,7 +198,7 @@ pub unsafe fn aligned_allocate_chunk(
     if mem != core::ptr::null_mut() {
         Ok(mem)
     } else {
-        Err(MMapError::UnknownError)
+        Err(MMapError::get())
     }
 }
 
@@ -189,7 +207,7 @@ pub unsafe fn deallocate_chunk(addr: *mut c_void, _size: usize) -> Result<()> {
     if 0 != VirtualFree(addr, 0, MEM_RELEASE) {
         Ok(())
     } else {
-        Err(MMapError::UnknownError)
+        Err(MMapError::get())
     }
 }
 

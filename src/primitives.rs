@@ -34,7 +34,7 @@ pub enum MMapError {
     /// number of pages overflows `unsigned long` (32-bit platform)
     LengthOverflow,
     /// errors not expected
-    UnknownError,
+    UnknownError(u32),
     /// no error at all, NOT EXPECTED
     /// should double-check implementation if received
     NoError,

@@ -92,7 +92,7 @@ impl MMapError {
             libc::ENOMEM => MMapError::NoMemory,
             libc::EOVERFLOW => MMapError::LengthOverflow,
             0 => MMapError::NoError,
-            _ => MMapError::UnknownError,
+            _ => MMapError::UnknownError(e as u32),
         }
     }
 
