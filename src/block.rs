@@ -22,12 +22,6 @@ use super::object;
 use core::marker;
 use common::KiB;
 
-/// Size of a `Block`.
-pub const BLOCK_SIZE: usize = 4 * KiB;
-
-/// Size of a `Block` in `Word`s (`usize`s).
-pub const BLOCK_WORDS: usize = BLOCK_SIZE / core::mem::size_of::<usize>();
-
 /// Memory block: collection of objects.
 ///
 /// # Block Layout
@@ -76,8 +70,14 @@ impl<'a> Iterator for ObjectIterator<'a> {
 }
 
 impl<'a> BlockDescriptor<'a> {
+    /// Size of a `Block`.
+    pub const SIZE: usize = 4 * KiB;
+
+    /// Size of a `Block` in `Word`s (`usize`s).
+    pub const SIZE_IN_WORDS: usize = Self::SIZE / core::mem::size_of::<usize>();
+
     /// Constructor for `BlockDescriptor`.
-    pub fn new(start: *mut u8) -> BlockDescriptor<'a> {
+    pub fn new(start: *mut u8) -> Self {
         BlockDescriptor { start, free: start, phantom: marker::PhantomData }
     }
 

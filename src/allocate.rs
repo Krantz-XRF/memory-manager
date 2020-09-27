@@ -26,6 +26,9 @@ pub use primitives::Protection;
 pub use primitives::MMapError;
 pub use primitives::Result;
 
+use common::Address;
+use common::MiB;
+
 /// Memory chunk.
 ///
 /// Automatically deallocates the memory when dropped.
@@ -58,7 +61,7 @@ impl MemoryChunk {
     }
 
     /// Pointer to the starting address of this chunk.
-    pub fn data(&self) -> *mut u8 { self.data }
+    pub unsafe fn data(&self) -> Address<'_> { Address::from(self.data) }
 
     /// Length of this chunk.
     pub fn size(&self) -> usize { self.size }
@@ -73,8 +76,7 @@ impl<T> AsRef<[T]> for MemoryChunk {
     fn as_ref(&self) -> &[T] {
         unsafe {
             core::ptr::slice_from_raw_parts(
-                common::assert_aligned(
-                    self.data), self.size).as_ref().unwrap()
+                self.data as _, self.size).as_ref().unwrap()
         }
     }
 }
@@ -87,8 +89,8 @@ impl<T> AsMut<[T]> for MemoryChunk {
     /// Panics if `data` is not properly aligned for `T`.
     fn as_mut(&mut self) -> &mut [T] {
         unsafe {
-            core::ptr::slice_from_raw_parts_mut(common::assert_aligned(
-                self.data), self.size).as_mut().unwrap()
+            core::ptr::slice_from_raw_parts_mut(
+                self.data as _, self.size).as_mut().unwrap()
         }
     }
 }
@@ -99,5 +101,74 @@ impl Drop for MemoryChunk {
             primitives::deallocate_chunk(self.data as _, self.size)
                 .expect("failed to deallocate memory: ")
         }
+    }
+}
+
+/// Mega-blocks: allocation units, we reserve `Block`s from `MegaBlock`s.
+///
+/// Mega-blocks are managed in a global doubly-linked list.
+pub struct MegaBlock {
+    /// The previous mega-block in the global list.
+    pub previous: *mut MegaBlock,
+    /// The next mega-block in the global list.
+    pub next: *mut MegaBlock,
+    /// The allocated memory chunk for this mega-block.
+    pub chunk: MemoryChunk,
+}
+
+impl MegaBlock {
+    /// Size of a `MegaBlock`.
+    pub const SIZE: usize = 4 * MiB;
+
+    /// Size of a `MegaBlock` in `Word`s (`usize`s).
+    pub const SIZE_IN_WORDS: usize = Self::SIZE / core::mem::size_of::<usize>();
+
+    /// Constructor for `MegaBlock`.
+    pub fn new(protection: BitFlags<Protection>) -> Result<Self> {
+        Ok(MegaBlock {
+            previous: core::ptr::null_mut(),
+            next: core::ptr::null_mut(),
+            chunk: MemoryChunk::new(Self::SIZE, Self::SIZE, protection)?,
+        })
+    }
+}
+
+/// Mutable iterator for mega-blocks.
+pub struct MegaBlockIteratorMut<'a>(&'a mut MegaBlock);
+
+impl<'a> Iterator for MegaBlockIteratorMut<'a> {
+    type Item = &'a mut MegaBlock;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.0.next;
+        let mut current = MegaBlockIteratorMut(unsafe { next.as_mut()? });
+        core::mem::swap(self, &mut current);
+        Some(current.0)
+    }
+}
+
+impl<'a> From<&'a mut MegaBlock> for MegaBlockIteratorMut<'a> {
+    fn from(x: &'a mut MegaBlock) -> Self {
+        MegaBlockIteratorMut(x)
+    }
+}
+
+/// Const iterator for mega-blocks.
+pub struct MegaBlockIterator<'a>(&'a MegaBlock);
+
+impl<'a> Iterator for MegaBlockIterator<'a> {
+    type Item = &'a MegaBlock;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.0.next;
+        let mut current = MegaBlockIterator(unsafe { next.as_ref()? });
+        core::mem::swap(self, &mut current);
+        Some(current.0)
+    }
+}
+
+impl<'a> From<&'a MegaBlock> for MegaBlockIterator<'a> {
+    fn from(x: &'a MegaBlock) -> Self {
+        MegaBlockIterator(x)
     }
 }

@@ -44,7 +44,7 @@ use core::fmt;
 /// # let addr = Address::from(raw_p);
 /// assert_eq!(format!("{:?}", addr), "Address(0xdeadbeef)");
 /// ```
-#[derive(Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub struct Address<'a> {
     address: *mut u8,
     phantom: marker::PhantomData<&'a ()>,
