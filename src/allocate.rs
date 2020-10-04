@@ -29,6 +29,8 @@ pub use primitives::Result;
 use common::Address;
 use common::MiB;
 
+use core::iter::Map;
+
 /// Memory chunk.
 ///
 /// Automatically deallocates the memory when dropped.
@@ -109,9 +111,9 @@ impl Drop for MemoryChunk {
 /// Mega-blocks are managed in a global doubly-linked list.
 pub struct MegaBlock {
     /// The previous mega-block in the global list.
-    pub previous: *mut MegaBlock,
+    pub previous: MegaBlockList,
     /// The next mega-block in the global list.
-    pub next: *mut MegaBlock,
+    pub next: MegaBlockList,
     /// The allocated memory chunk for this mega-block.
     pub chunk: MemoryChunk,
 }
@@ -126,49 +128,81 @@ impl MegaBlock {
     /// Constructor for `MegaBlock`.
     pub fn new(protection: BitFlags<Protection>) -> Result<Self> {
         Ok(MegaBlock {
-            previous: core::ptr::null_mut(),
-            next: core::ptr::null_mut(),
+            previous: MegaBlockList::new(),
+            next: MegaBlockList::new(),
             chunk: MemoryChunk::new(Self::SIZE, Self::SIZE, protection)?,
         })
     }
 }
 
+/// Mega-block lists: doubly-linked list of mega-blocks.
+pub struct MegaBlockList(*mut MegaBlock);
+
+impl MegaBlockList {
+    /// Constructor for `MegaBlock`.
+    pub fn new() -> MegaBlockList {
+        MegaBlockList(core::ptr::null_mut())
+    }
+
+    /// The first node of this list, if existing.
+    pub fn head(&self) -> Option<&MegaBlock> {
+        Some(unsafe { self.0.as_ref()? })
+    }
+
+    /// The first node of this list, if existing.
+    pub fn head_mut(&mut self) -> Option<&mut MegaBlock> {
+        Some(unsafe { self.0.as_mut()? })
+    }
+}
+
 /// Mutable iterator for mega-blocks.
-pub struct MegaBlockIteratorMut<'a>(&'a mut MegaBlock);
+pub struct MegaBlockIteratorMut<'a>(Option<&'a mut MegaBlock>);
 
 impl<'a> Iterator for MegaBlockIteratorMut<'a> {
     type Item = &'a mut MegaBlock;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self.0.next;
-        let mut current = MegaBlockIteratorMut(unsafe { next.as_mut()? });
-        core::mem::swap(self, &mut current);
-        Some(current.0)
-    }
-}
-
-impl<'a> From<&'a mut MegaBlock> for MegaBlockIteratorMut<'a> {
-    fn from(x: &'a mut MegaBlock) -> Self {
-        MegaBlockIteratorMut(x)
+        self.0.as_mut().and_then(|me|
+            Some(core::mem::replace(me, unsafe { me.next.0.as_mut()? })))
     }
 }
 
 /// Const iterator for mega-blocks.
-pub struct MegaBlockIterator<'a>(&'a MegaBlock);
+pub struct MegaBlockIterator<'a>(Option<&'a MegaBlock>);
 
 impl<'a> Iterator for MegaBlockIterator<'a> {
     type Item = &'a MegaBlock;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self.0.next;
-        let mut current = MegaBlockIterator(unsafe { next.as_ref()? });
-        core::mem::swap(self, &mut current);
-        Some(current.0)
+        self.0.as_mut().and_then(|me|
+            Some(core::mem::replace(me, unsafe { me.next.0.as_ref()? })))
     }
 }
 
-impl<'a> From<&'a MegaBlock> for MegaBlockIterator<'a> {
-    fn from(x: &'a MegaBlock) -> Self {
-        MegaBlockIterator(x)
+/// Mutable iterator for chunks in a mega-block list.
+pub type ChunkIteratorMut<'a> = Map<MegaBlockIteratorMut<'a>, fn(&mut MegaBlock) -> &mut MemoryChunk>;
+
+/// Const iterator for chunks in a mega-block list.
+pub type ChunkIterator<'a> = Map<MegaBlockIterator<'a>, fn(&MegaBlock) -> &MemoryChunk>;
+
+impl MegaBlockList {
+    /// Const iterator for traversing the mega-block list.
+    pub fn iter(&self) -> MegaBlockIterator {
+        MegaBlockIterator(unsafe { self.0.as_ref() })
+    }
+
+    /// Mutable iterator for traversing the mega-block list.
+    pub fn iter_mut(&mut self) -> MegaBlockIteratorMut {
+        MegaBlockIteratorMut(unsafe { self.0.as_mut() })
+    }
+
+    /// Iterating memory chunks.
+    pub fn chunks(&self) -> ChunkIterator {
+        self.iter().map(|x| &x.chunk)
+    }
+
+    /// Mutably iterating memory chunks.
+    pub fn chunks_mut(&mut self) -> ChunkIteratorMut {
+        self.iter_mut().map(|x| &mut x.chunk)
     }
 }
