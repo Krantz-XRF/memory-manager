@@ -27,11 +27,11 @@ use common::KiB;
 /// # Block Layout
 ///
 /// ```text
-/// +----------+----------+-----+----------+--------------+
-/// | reserved | object 0 | ... | object N | not used yet |
-/// +----------+----------+-----+----------+--------------+
-///            ^                           ^
-///            |                           |
+/// ┏━━━━━━━━━━┯━━━━━━━━━━┯━━━━━┯━━━━━━━━━━┯━━━━━━━━━━━━━━┓
+/// ┃ reserved │ object 0 │ ... │ object N │ not used yet ┃
+/// ┗━━━━━━━━━━┷━━━━━━━━━━┷━━━━━┷━━━━━━━━━━┷━━━━━━━━━━━━━━┛
+///            ↑                           ↑
+///            │                           │
 ///          start                        free
 /// ```
 ///
@@ -41,9 +41,11 @@ use common::KiB;
 #[derive(Copy, Clone)]
 pub struct BlockDescriptor<'a> {
     /// The starting address for this block.
-    /// **Invariant**: at `start` there is a valid `ObjectDescriptor`.
+    ///
+    /// **Invariant**: unless `start == free`, at `start` there is a valid `ObjectDescriptor`.
     pub start: *mut u8,
     /// The first free address in this block.
+    ///
     /// **Invariant**: no pointers in the same block is after `free`.
     pub free: *mut u8,
     phantom: marker::PhantomData<&'a ()>,

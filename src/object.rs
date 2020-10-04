@@ -24,9 +24,9 @@ use super::common;
 /// # Object Layout
 ///
 /// ```text
-/// +-----------------------+-----------------+----------+
-/// | pointer to descriptor | unpacked fields | pointers |
-/// +-----------------------+-----------------+----------+
+/// ┏━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━┯━━━━━━━━━━┓
+/// ┃ pointer to descriptor │ unpacked fields │ pointers ┃
+/// ┗━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━┷━━━━━━━━━━┛
 /// ```
 ///
 /// All unpacked fields are gathered at the front of the object. Therefore, all the pointer fields
