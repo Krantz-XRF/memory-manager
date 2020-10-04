@@ -63,9 +63,7 @@ impl<'a> Iterator for ObjectIterator<'a> {
         let this_size = self.current.total_size();
         let next_addr = unsafe { this_addr.offset(this_size as isize) };
         if next_addr >= self.boundary { return None; }
-        let mut res = object::Object::from(next_addr);
-        core::mem::swap(&mut self.current, &mut res);
-        Some(res)
+        Some(core::mem::replace(&mut self.current, object::Object::from(next_addr)))
     }
 }
 
