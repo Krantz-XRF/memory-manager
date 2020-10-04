@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["BlockDescriptor","Memory block: collection of objects."],["ObjectIterator","Iterator for `Object`s."]]});

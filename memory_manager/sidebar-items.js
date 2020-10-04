@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["allocate","Memory allocation utilities."],["block","memory block"],["common","Common memory-related utilities."],["object","An object is effectively a collection of pointers."],["primitives","Memory allocation primitives."]]});

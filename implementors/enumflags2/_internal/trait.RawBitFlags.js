@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["memory_manager"] = [{"text":"impl RawBitFlags for <a class=\"enum\" href=\"memory_manager/allocate/enum.Protection.html\" title=\"enum memory_manager::allocate::Protection\">Protection</a>","synthetic":false,"types":["memory_manager::primitives::unix::Protection"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
